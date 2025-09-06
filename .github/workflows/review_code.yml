@@ -1,0 +1,43 @@
+# .github/workflows/gemini_review.yml
+
+name: Gemini AI Code Review
+
+# Kích hoạt workflow này mỗi khi một Pull Request được mở,
+# hoặc khi có commit mới được đẩy lên một PR đang mở.
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    # Cấp quyền cho workflow để có thể viết comment vào Pull Request
+    permissions:
+      pull-requests: write
+
+    steps:
+      # Bước 1: Checkout code của bạn về máy ảo chạy workflow
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Bước 2: Cài đặt môi trường Python
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10' # Bạn có thể chọn phiên bản Python phù hợp
+
+      # Bước 3: Cài đặt các thư viện Python cần thiết
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install PyGithub google-generativeai
+
+      # Bước 4: Chạy script review code
+      - name: Run Gemini Code Review
+        env:
+          # Truyền các secret và token vào script dưới dạng biến môi trường
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GEMINI_API_KEY: AIzaSyBNf8594Q6SbrhL8tJN5DCQtI9BJZisdH4
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_REF: ${{ github.ref }}
+        run: python review_script.py
