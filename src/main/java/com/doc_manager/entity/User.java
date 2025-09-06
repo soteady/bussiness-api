@@ -38,4 +38,10 @@ public class User {
             inverseJoinColumns = @JoinColumn(name = "role_id")
     )
     private Set<Role> roles = new HashSet<>();
+
+    // Kiểm tra role tiện dụng
+    public boolean hasRole(String roleName) {
+        return roles.stream()
+                .anyMatch(r -> r.getName().equalsIgnoreCase(roleName));
+    }
 }
