@@ -15,5 +15,5 @@ public class DocumentRequest {
 
     private String description;
 
-    private Set<String> allowedUserEmails;
+    private Set<String> allowedUser;
 }

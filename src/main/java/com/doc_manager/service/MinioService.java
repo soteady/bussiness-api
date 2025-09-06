@@ -68,4 +68,13 @@ public class MinioService {
                         .build()
         );
     }
+
+    public String getContentType(String objectName) throws Exception {
+        StatObjectResponse stat = minioClient.statObject(
+                StatObjectArgs.builder()
+                        .bucket(bucket)
+                        .object(objectName)
+                        .build());
+        return stat.contentType();
+    }
 }

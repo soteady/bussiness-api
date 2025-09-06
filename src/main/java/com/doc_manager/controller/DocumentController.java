@@ -9,6 +9,9 @@ import com.doc_manager.service.MinioService;
 import com.doc_manager.service.ScanService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
@@ -58,9 +61,9 @@ public class DocumentController {
         }
 
         Set<User> allowedUsers = new HashSet<>();
-        if(request.getAllowedUserEmails()!=null){
-            for(String email : request.getAllowedUserEmails()){
-                userRepo.findByEmail(email).ifPresent(allowedUsers::add);
+        if(request.getAllowedUser()!=null){
+            for(String user : request.getAllowedUser()){
+                userRepo.findByUsername(user).ifPresent(allowedUsers::add);
             }
         }
 
@@ -80,12 +83,6 @@ public class DocumentController {
         scanService.scanDocumentAsync(doc.getId());
 
         return ResponseEntity.ok(Map.of("message","Uploaded","documentId",doc.getId()));
-    }
-
-    @GetMapping
-    public List<Document> list() {
-        String username = getCurrentUsername();
-        return docRepo.findByUploadedByOrAllowedUsersUsername(username, username);
     }
 
     @GetMapping("/{id}")
@@ -111,9 +108,9 @@ public class DocumentController {
             doc.setDescription(request.getDescription());
 
             Set<User> allowedUsers = new HashSet<>();
-            if(request.getAllowedUserEmails()!=null){
-                for(String email : request.getAllowedUserEmails()){
-                    userRepo.findByEmail(email).ifPresent(allowedUsers::add);
+            if(request.getAllowedUser()!=null){
+                for(String user : request.getAllowedUser()){
+                    userRepo.findByUsername(user).ifPresent(allowedUsers::add);
                 }
             }
             doc.setAllowedUsers(allowedUsers);
@@ -149,13 +146,27 @@ public class DocumentController {
 
             try (InputStream is = minioService.getFileStream(doc.getObjectName())) {
                 byte[] bytes = is.readAllBytes();
+                // Lấy content type từ MinIO
+                String contentType = minioService.getContentType(doc.getObjectName());
+                if (contentType == null) contentType = "application/octet-stream";
                 return ResponseEntity.ok()
                         .header("Content-Disposition", "attachment; filename=\"" + doc.getFilename() + "\"")
-                        .header("Content-Type", "application/octet-stream")
+                        .header("Content-Type", contentType)
                         .body(bytes);
             } catch (Exception e) {
                 return ResponseEntity.status(500).body("Lấy file thất bại");
             }
         }).orElse(ResponseEntity.notFound().build());
+    }
+
+    @GetMapping("/my-documents")
+    public ResponseEntity<?> listUserDocuments(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+
+        Pageable pageable = PageRequest.of(page, size);
+        String username = getCurrentUsername();
+        Page<Document> docs = docRepo.findByUploadedByOrAllowedUsersUsername(username, username, pageable);
+        return ResponseEntity.ok(docs);
     }
 }
