@@ -135,4 +135,27 @@ public class DocumentController {
             return ResponseEntity.ok(Map.of("message","Deleted"));
         }).orElse(ResponseEntity.notFound().build());
     }
+
+    @GetMapping("/download/{id}")
+    public ResponseEntity<?> download(@PathVariable Long id) {
+        String username = getCurrentUsername();
+
+        return docRepo.findById(id).map(doc -> {
+            boolean allowed = doc.getUploadedBy().equals(username)
+                    || doc.getAllowedUsers().stream().anyMatch(u -> u.getUsername().equals(username))
+                    || isAdmin();
+
+            if (!allowed) return ResponseEntity.status(403).body("Không có quyền");
+
+            try (InputStream is = minioService.getFileStream(doc.getObjectName())) {
+                byte[] bytes = is.readAllBytes();
+                return ResponseEntity.ok()
+                        .header("Content-Disposition", "attachment; filename=\"" + doc.getFilename() + "\"")
+                        .header("Content-Type", "application/octet-stream")
+                        .body(bytes);
+            } catch (Exception e) {
+                return ResponseEntity.status(500).body("Lấy file thất bại");
+            }
+        }).orElse(ResponseEntity.notFound().build());
+    }
 }
